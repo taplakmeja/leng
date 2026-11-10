@@ -60,6 +60,8 @@ export class OnlineController implements GamePresenter {
     const ws = new WebSocket(`${proto}://${location.host}/ws`);
     this.ws = ws;
     ws.onopen = () => {
+      this._connected = true;
+      this.notify();
       this.ws?.send(JSON.stringify({ type: 'hello', name: this.name, ...this.identity }));
     };
     ws.onmessage = (ev) => {

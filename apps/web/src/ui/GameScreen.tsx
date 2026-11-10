@@ -4,6 +4,26 @@ import { validatePlayOnView } from '@leng/engine';
 import type { GamePresenter } from '../controllers/local.js';
 import { PlayingCard } from './PlayingCard.js';
 import { interpretSelection, sortHand } from '../selection.js';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 function ordinalLabel(rank: number): string {
   if (rank === 1) return 'A';
@@ -33,7 +53,6 @@ export function GameScreen({
   const [recorded, setRecorded] = useState(false);
 
   useEffect(() => presenter.subscribe(() => force((n) => n + 1)), [presenter]);
-  useEffect(() => () => presenter.dispose(), [presenter]);
 
   const view = presenter.snapshot();
   const hot = presenter.hotSeat();
@@ -52,14 +71,6 @@ export function GameScreen({
       onMatchRecorded(view);
     }
   }, [view, recorded, onMatchRecorded]);
-
-  if (!view) {
-    return (
-      <div className="screen screen-center">
-        <p>Menyambungkan…</p>
-      </div>
-    );
-  }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -88,23 +99,31 @@ export function GameScreen({
     setSelected((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
   };
 
-  const opponents = view.players.filter((p) => p.id !== view.you.id);
+  const opponents = view?.players.filter((p) => p.id !== view.you.id) ?? [];
+
+  if (!view) {
+    return (
+      <div className="screen screen-center">
+        <p className="muted">Menyambungkan…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="screen game-screen">
       <header className="game-header">
-        <button className="btn btn-ghost" onClick={onExit} aria-label="Keluar">
+        <Button variant="ghost" onClick={onExit} aria-label="Keluar">
           ← Keluar
-        </button>
+        </Button>
         <div className="game-title">
           <span className="deal-label">Deal {view.dealNumber}</span>
           <span className={`phase-label ${round1 ? 'phase-r1' : ''}`}>
             {round1 ? 'Putaran 1: buka run 3+ kartu' : 'Putaran bebas'}
           </span>
         </div>
-        <button className="btn btn-ghost" onClick={() => setShowHistory((s) => !s)}>
+        <Button variant="ghost" onClick={() => setShowHistory((s) => !s)}>
           Riwayat
-        </button>
+        </Button>
       </header>
 
       <section className="opponents-row" aria-label="lawan">
@@ -125,10 +144,10 @@ export function GameScreen({
                 {p.name}
               </span>
               <span className="opponent-count">{p.handCount} kartu</span>
-              {p.status === 'droppedOut' && <span className="badge badge-out">istirahat</span>}
-              {p.status === 'leng' && <span className="badge badge-leng">LENG!</span>}
+              {p.status === 'droppedOut' && <Badge variant="outline">istirahat</Badge>}
+              {p.status === 'leng' && <Badge>LENG!</Badge>}
               {p.penalty !== undefined && p.status !== 'leng' && (
-                <span className="badge">{p.penalty} poin</span>
+                <Badge variant="secondary">{p.penalty} poin</Badge>
               )}
             </div>
           </div>
@@ -192,9 +211,7 @@ export function GameScreen({
           <div className="handoff">
             <p>Serukan perangkat ke</p>
             <h2>{view.players[hot.seat]?.name ?? playerName}</h2>
-            <button className="btn btn-primary" onClick={() => presenter.revealHand()}>
-              Lihat Kartu Saya
-            </button>
+            <Button onClick={() => presenter.revealHand()}>Lihat Kartu Saya</Button>
           </div>
         ) : (
           <>
@@ -236,52 +253,51 @@ export function GameScreen({
                 </div>
               )}
               <div className="action-buttons">
-                <button
-                  className="btn btn-primary btn-lg"
+                <Button
+                  size="lg"
+                  className="btn-lg-touch font-bold"
                   disabled={!activePlay}
                   onClick={() => activePlay && presenter.play([activePlay])}
                 >
                   Mainkan
-                </button>
-                <button
-                  className="btn btn-danger btn-lg"
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="lg"
+                  className="btn-lg-touch"
                   disabled={!isMyTurn}
                   onClick={() => setConfirmPass(true)}
                 >
                   Pass
-                </button>
+                </Button>
               </div>
             </div>
           </>
         )}
       </section>
 
-      {confirmPass && (
-        <div className="modal-backdrop" onClick={() => setConfirmPass(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Pass?</h3>
-            <p>
+      <AlertDialog open={confirmPass} onOpenChange={setConfirmPass}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Pass?</AlertDialogTitle>
+            <AlertDialogDescription>
               Pass berarti kamu <strong>keluar dari deal ini</strong> dan sisa kartumu dihitung di
               akhir. Lanjutkan?
-            </p>
-            <div className="modal-actions">
-              <button className="btn btn-ghost" onClick={() => setConfirmPass(false)}>
-                Batal
-              </button>
-              <button
-                className="btn btn-danger"
-                onClick={() => {
-                  setConfirmPass(false);
-                  setSelected([]);
-                  presenter.pass();
-                }}
-              >
-                Ya, pass
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setSelected([]);
+                presenter.pass();
+              }}
+            >
+              Ya, pass
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {(view.phase === 'dealOver' || view.phase === 'matchOver') && (
         <ResultsOverlay view={view} presenter={presenter} onExit={onExit} />
@@ -315,10 +331,14 @@ function ResultsOverlay({
   const result = view.results[view.results.length - 1]!;
   const winner = view.players.find((p) => p.id === result.winnerId);
   return (
-    <div className="modal-backdrop">
-      <div className="modal results">
-        <h2>{winner ? `${winner.name} — LENG! 🐉` : 'Deal selesai'}</h2>
-        {view.phase === 'matchOver' && <p className="match-over">Pertandingan selesai</p>}
+    <Dialog open onOpenChange={() => {}}>
+      <DialogContent showCloseButton={false} className="results sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{winner ? `${winner.name} — LENG! 🐉` : 'Deal selesai'}</DialogTitle>
+          {view.phase === 'matchOver' && (
+            <DialogDescription className="match-over">Pertandingan selesai</DialogDescription>
+          )}
+        </DialogHeader>
         <table className="results-table">
           <thead>
             <tr>
@@ -345,22 +365,18 @@ function ResultsOverlay({
             })}
           </tbody>
         </table>
-        <div className="modal-actions">
-          <button className="btn btn-ghost" onClick={onExit}>
+        <DialogFooter>
+          <Button variant="outline" onClick={onExit}>
             Keluar
-          </button>
+          </Button>
           {view.phase === 'dealOver' && (
-            <button className="btn btn-primary" onClick={() => presenter.nextDeal()}>
-              Deal berikutnya
-            </button>
+            <Button onClick={() => presenter.nextDeal()}>Deal berikutnya</Button>
           )}
           {view.phase === 'matchOver' && presenter.mode === 'online' && (
-            <button className="btn btn-primary" onClick={() => presenter.newMatch()}>
-              Main lagi
-            </button>
+            <Button onClick={() => presenter.newMatch()}>Main lagi</Button>
           )}
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
