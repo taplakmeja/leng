@@ -1,25 +1,46 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import type { Difficulty } from '@leng/ai';
 import type { LocalProfile } from '../profile.js';
 import { AVATAR_CHOICES } from '../profile.js';
-import type { Difficulty } from '@leng/ai';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
-export type ModeSelection =
-  | { kind: 'practice'; difficulty: Difficulty; playerCount: number }
-  | { kind: 'passplay'; playerCount: number }
-  | { kind: 'online' }
-  | { kind: 'profile' };
+const PLAYER_COUNTS = [2, 3, 4, 5, 6];
 
 export function HomeScreen({
   profile,
-  onSelect,
   onRename,
   onAvatar,
 }: {
   profile: LocalProfile;
-  onSelect: (mode: ModeSelection) => void;
   onRename: (name: string) => void;
   onAvatar: (avatar: string) => void;
 }) {
+  const navigate = useNavigate();
   const [difficulty, setDifficulty] = useState<Difficulty>('normal');
   const [practiceCount, setPracticeCount] = useState(4);
   const [passCount, setPassCount] = useState(4);
@@ -32,65 +53,99 @@ export function HomeScreen({
         <h1 className="logo">
           LENG <span className="logo-sub">🐉 Kartu Tradisional Sumatera Utara</span>
         </h1>
-        <button className="profile-chip" onClick={() => onSelect({ kind: 'profile' })}>
+        <Button variant="ghost" className="profile-chip" onClick={() => navigate('/profile')}>
           <span className="avatar">{profile.avatar}</span>
           <span>{profile.name}</span>
           <span className="profile-stats-chip">
             {profile.matchesWon}/{profile.matchesPlayed} menang
           </span>
-        </button>
+        </Button>
       </header>
 
       <div className="mode-grid">
-        <button className="mode-card" onClick={() => onSelect({ kind: 'practice', difficulty, playerCount: practiceCount })}>
-          <span className="mode-icon">🤖</span>
-          <h2>Latihan</h2>
-          <p>Main melawan AI, tanpa internet.</p>
-          <div className="mode-options" onClick={(e) => e.stopPropagation()}>
-            <label>
-              Level:
-              <select value={difficulty} onChange={(e) => setDifficulty(e.target.value as Difficulty)}>
-                <option value="easy">Mudah</option>
-                <option value="normal">Normal</option>
-                <option value="hard">Sulit</option>
-              </select>
-            </label>
-            <label>
-              Pemain:
-              <select value={practiceCount} onChange={(e) => setPracticeCount(Number(e.target.value))}>
-                {[2, 3, 4, 5, 6].map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        </button>
+        <Card
+          className="mode-card"
+          onClick={() => navigate(`/game/practice?difficulty=${difficulty}&players=${practiceCount}`)}
+        >
+          <CardHeader>
+            <span className="mode-icon">🤖</span>
+            <CardTitle>Latihan</CardTitle>
+            <CardDescription>Main melawan AI, tanpa internet.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="mode-options" onClick={(e) => e.stopPropagation()}>
+              <Label className="mode-label">
+                Level:
+                <Select value={difficulty} onValueChange={(v) => setDifficulty(v as Difficulty)}>
+                  <SelectTrigger className="w-28">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="easy">Mudah</SelectItem>
+                    <SelectItem value="normal">Normal</SelectItem>
+                    <SelectItem value="hard">Sulit</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Label>
+              <Label className="mode-label">
+                Pemain:
+                <Select
+                  value={String(practiceCount)}
+                  onValueChange={(v) => setPracticeCount(Number(v))}
+                >
+                  <SelectTrigger className="w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PLAYER_COUNTS.map((n) => (
+                      <SelectItem key={n} value={String(n)}>
+                        {n}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Label>
+            </div>
+          </CardContent>
+        </Card>
 
-        <button className="mode-card" onClick={() => onSelect({ kind: 'passplay', playerCount: passCount })}>
-          <span className="mode-icon">🤝</span>
-          <h2>Bergantian (Satu Perangkat)</h2>
-          <p>Beberapa pemain berbagi satu layar.</p>
-          <div className="mode-options" onClick={(e) => e.stopPropagation()}>
-            <label>
-              Pemain:
-              <select value={passCount} onChange={(e) => setPassCount(Number(e.target.value))}>
-                {[2, 3, 4, 5, 6].map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        </button>
+        <Card
+          className="mode-card"
+          onClick={() => navigate(`/game/passplay?players=${passCount}`)}
+        >
+          <CardHeader>
+            <span className="mode-icon">🤝</span>
+            <CardTitle>Bergantian (Satu Perangkat)</CardTitle>
+            <CardDescription>Beberapa pemain berbagi satu layar.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="mode-options" onClick={(e) => e.stopPropagation()}>
+              <Label className="mode-label">
+                Pemain:
+                <Select value={String(passCount)} onValueChange={(v) => setPassCount(Number(v))}>
+                  <SelectTrigger className="w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PLAYER_COUNTS.map((n) => (
+                      <SelectItem key={n} value={String(n)}>
+                        {n}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Label>
+            </div>
+          </CardContent>
+        </Card>
 
-        <button className="mode-card" onClick={() => onSelect({ kind: 'online' })}>
-          <span className="mode-icon">🌐</span>
-          <h2>Online</h2>
-          <p>Buat room privat, gabung kode room, atau matchmaking publik.</p>
-        </button>
+        <Card className="mode-card" onClick={() => navigate('/lobby')}>
+          <CardHeader>
+            <span className="mode-icon">🌐</span>
+            <CardTitle>Online</CardTitle>
+            <CardDescription>Buat room privat, gabung kode room, atau matchmaking publik.</CardDescription>
+          </CardHeader>
+        </Card>
       </div>
 
       <section className="rules-summary">
@@ -103,42 +158,47 @@ export function HomeScreen({
         </ul>
       </section>
 
-      {editing && (
-        <div className="modal-backdrop" onClick={() => setEditing(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Profil</h3>
-            <label className="field">
-              Nama
-              <input value={nameDraft} maxLength={24} onChange={(e) => setNameDraft(e.target.value)} />
-            </label>
-            <div className="avatar-row">
-              {AVATAR_CHOICES.map((a) => (
-                <button
-                  key={a}
-                  className={`avatar-choice ${a === profile.avatar ? 'avatar-active' : ''}`}
-                  onClick={() => onAvatar(a)}
-                >
-                  {a}
-                </button>
-              ))}
-            </div>
-            <div className="modal-actions">
-              <button className="btn btn-ghost" onClick={() => setEditing(false)}>
-                Tutup
-              </button>
-              <button
-                className="btn btn-primary"
-                onClick={() => {
-                  onRename(nameDraft.trim() || 'Pemain');
-                  setEditing(false);
-                }}
-              >
-                Simpan
-              </button>
-            </div>
+      <Dialog open={editing} onOpenChange={setEditing}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Profil</DialogTitle>
+            <DialogDescription>Ubah nama dan avatar kamu.</DialogDescription>
+          </DialogHeader>
+          <div className="field">
+            <Label htmlFor="player-name">Nama</Label>
+            <Input
+              id="player-name"
+              value={nameDraft}
+              maxLength={24}
+              onChange={(e) => setNameDraft(e.target.value)}
+            />
           </div>
-        </div>
-      )}
+          <div className="avatar-row">
+            {AVATAR_CHOICES.map((a) => (
+              <button
+                key={a}
+                className={`avatar-choice ${a === profile.avatar ? 'avatar-active' : ''}`}
+                onClick={() => onAvatar(a)}
+              >
+                {a}
+              </button>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditing(false)}>
+              Tutup
+            </Button>
+            <Button
+              onClick={() => {
+                onRename(nameDraft.trim() || 'Pemain');
+                setEditing(false);
+              }}
+            >
+              Simpan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
