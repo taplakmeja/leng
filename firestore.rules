@@ -1,0 +1,62 @@
+rules_version = '2';
+
+// Leng - Firestore security rules.
+// Companion to docs/ARCHITECTURE.md (Firebase deployment mapping).
+//
+// Core invariants enforced here:
+//   1. Private hands are NEVER readable by any client. Hands live only inside
+//      server-only game state, written exclusively by the game backend
+//      (Cloud Functions / dedicated server via the Admin SDK, which bypasses
+//      these rules). Clients may only read redacted views.
+//   2. Profiles are writable only by their owner, and only cosmetic fields.
+//   3. Match history is read-only for clients; written by the backend.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // ---- users/{uid}: public profile (name, avatar, stats) ----
+    match /users/{userId} {
+      allow read: if true; // public profiles power friends/lobby UI
+      // Direct client writes are limited to cosmetic fields; stats and
+      // identity fields are backend-managed.
+      allow update: if isOwner(userId)
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['name', 'avatar']);
+      allow create, delete: if false; // created by backend on first login
+    }
+
+    // ---- users/{uid}/history: personal match history ----
+    match /users/{userId}/history/{entryId} {
+      allow read: if isOwner(userId);
+      allow write: if false; // backend only
+    }
+
+    // ---- friendships ----
+    match /users/{userId}/friends/{friendId} {
+      allow read: if isOwner(userId);
+      // Requests are written to the TARGET user's list by the requester via a
+      // backend function; direct writes are denied.
+      allow write: if false;
+    }
+
+    // ---- rooms/{code}: lobby metadata only (no game state, no hands) ----
+    match /rooms/{code} {
+      allow read: if resource.data.isPrivate == false || isOwner(resource.data.hostId);
+      allow write: if false; // lobby lifecycle is backend-managed
+    }
+
+    // ---- gameSecrets: server-only. Absolutely no client access. ----
+    // Hands, deck order, RNG state, and scoring internals live here.
+    match /gameSecrets/{docId} {
+      allow read, write: if false;
+    }
+  }
+}
